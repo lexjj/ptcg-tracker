@@ -52,7 +52,12 @@
     /* Form */
     .fg5 { display: grid; grid-template-columns: 118px 1fr 1fr 90px 80px; gap: 10px; align-items: end; margin-bottom: 10px; }
     .fg2 { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; }
-    @media(max-width:640px) { .fg5,.fg2 { grid-template-columns: 1fr; } }
+    @media(min-width:641px) { #gP { grid-column: 4; } #gQ { grid-column: 5; } }
+    @media(max-width:640px) {
+      .fg5 { grid-template-columns: 1fr 1fr; }
+      .fg2 { grid-template-columns: 1fr; }
+      #gCN { grid-column: span 2; }
+    }
     .fg { display: flex; flex-direction: column; gap: 4px; }
     .fg label { font-size: 0.67rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
     input,select { padding: 8px 10px; border: 1.5px solid var(--border); border-radius: 7px; font-size: 0.87rem; color: var(--text); background: white; font-family: inherit; transition: border-color .15s; width: 100%; }
@@ -144,8 +149,8 @@
         </select>
       </div>
       <div class="fg" id="gCN" style="display:none"><label>Item Name</label><input type="text" id="iCN" placeholder="e.g. Pikachu ex FA" /></div>
-      <div class="fg" style="grid-column:4"><label>Price / Unit ($)</label><input type="number" id="iP" min="0" step="0.01" placeholder="0.00" /></div>
-      <div class="fg" style="grid-column:5"><label>Qty</label><input type="number" id="iQ" min="1" value="1" /></div>
+      <div class="fg" id="gP"><label>Price / Unit ($)</label><input type="number" id="iP" min="0" step="0.01" placeholder="0.00" /></div>
+      <div class="fg" id="gQ"><label>Qty</label><input type="number" id="iQ" min="1" value="1" /></div>
     </div>
     <div class="fg2">
       <div class="fg"><label>Notes (optional)</label><input type="text" id="iN" placeholder="Set name, store…" /></div>
