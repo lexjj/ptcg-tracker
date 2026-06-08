@@ -54,9 +54,10 @@
     .fg2 { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; }
     @media(min-width:641px) { #gP { grid-column: 4; } #gQ { grid-column: 5; } }
     @media(max-width:640px) {
-      .fg5 { grid-template-columns: 1fr 1fr; }
-      .fg2 { grid-template-columns: 1fr; }
+      .fg5 { grid-template-columns: 1fr 1fr 1fr; }
+      .fg5 > div:first-child { grid-column: 1 / -1; }
       #gCN { grid-column: span 2; }
+      .fg2 { grid-template-columns: 1fr; }
     }
     .fg { display: flex; flex-direction: column; gap: 4px; }
     .fg label { font-size: 0.67rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
