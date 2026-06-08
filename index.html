@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PTCG Expense Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --red: #e3350d; --red-dk: #b5280a;
+      --yellow: #f5c518; --dark: #1a1a2e;
+      --card: #ffffff; --bg: #f0f2f8;
+      --border: #e2e8f0; --text: #1e293b; --muted: #64748b;
+      --green: #16a34a; --blue: #3b82f6;
+      --shadow: 0 1px 6px rgba(0,0,0,0.07);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+
+    /* Header */
+    header { background: var(--dark); padding: 12px 20px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 200; box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+    .pokeball { width: 26px; height: 26px; flex-shrink: 0; background: conic-gradient(#e3350d 180deg, white 180deg); border-radius: 50%; border: 2.5px solid #555; position: relative; }
+    .pokeball::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 8px; height: 8px; background: white; border-radius: 50%; border: 2px solid #555; }
+    header h1 { color: white; font-size: 0.98rem; font-weight: 700; flex: 1; }
+    header h1 span { color: var(--yellow); font-size: 0.72rem; margin-left: 6px; opacity: 0.85; }
+
+    /* Sync badge */
+    #syncBadge { font-size: 0.7rem; padding: 3px 9px; border-radius: 20px; font-weight: 700; white-space: nowrap; cursor: default; }
+    #syncBadge.synced  { background: #d1fae5; color: #065f46; }
+    #syncBadge.syncing { background: #fef3c7; color: #92400e; }
+    #syncBadge.error   { background: #fee2e2; color: #991b1b; cursor: pointer; }
+    #syncBadge.notoken { background: #f1f5f9; color: var(--muted); cursor: pointer; }
+
+    main { max-width: 920px; margin: 0 auto; padding: 18px 14px 48px; }
+
+    /* Summary cards */
+    .sg { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 20px; }
+    @media(max-width:580px) { .sg { grid-template-columns: repeat(2,1fr); } }
+    .sc { background: var(--card); border-radius: 10px; padding: 13px 15px; box-shadow: var(--shadow); border-left: 3px solid var(--red); }
+    .sc.y{border-left-color:var(--yellow);} .sc.g{border-left-color:var(--green);} .sc.b{border-left-color:var(--blue);}
+    .sc .sl { font-size: 0.64rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .sc .sv { font-size: 1.32rem; font-weight: 800; margin: 2px 0; }
+    .sc .ss { font-size: 0.67rem; color: var(--muted); }
+
+    /* Section label */
+    .sec { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 10px; }
+
+    /* Card */
+    .card { background: var(--card); border-radius: 12px; padding: 16px; box-shadow: var(--shadow); margin-bottom: 16px; }
+
+    /* Form */
+    .fg5 { display: grid; grid-template-columns: 118px 1fr 1fr 90px 80px; gap: 10px; align-items: end; margin-bottom: 10px; }
+    .fg2 { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; }
+    @media(max-width:640px) { .fg5,.fg2 { grid-template-columns: 1fr; } }
+    .fg { display: flex; flex-direction: column; gap: 4px; }
+    .fg label { font-size: 0.67rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+    input,select { padding: 8px 10px; border: 1.5px solid var(--border); border-radius: 7px; font-size: 0.87rem; color: var(--text); background: white; font-family: inherit; transition: border-color .15s; width: 100%; }
+    input:focus,select:focus { outline: none; border-color: var(--red); }
+    .btn { padding: 8px 15px; border: none; border-radius: 7px; font-size: 0.87rem; font-weight: 700; cursor: pointer; transition: opacity .15s, transform .1s; white-space: nowrap; font-family: inherit; }
+    .btn:active { transform: scale(.97); }
+    .btn-red { background: var(--red); color: white; } .btn-red:hover { background: var(--red-dk); }
+    .btn-sm { padding: 4px 10px; font-size: 0.73rem; border-radius: 5px; }
+    .btn-ghost { background: #f1f5f9; color: var(--muted); border: 1px solid var(--border); } .btn-ghost:hover { background: #e2e8f0; }
+    .btn-del { background: #fee2e2; color: #dc2626; border: none; } .btn-del:hover { background: #fecaca; }
+    .lt { font-weight: 800; font-size: 1rem; color: var(--red); min-width: 70px; text-align: right; }
+
+    /* Toolbar + filters */
+    .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
+    .tbr { display: flex; gap: 6px; flex-wrap: wrap; }
+    .filters { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+    .filters select { max-width: 180px; flex: 1; }
+
+    /* Table */
+    .tw { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    thead th { padding: 9px 10px; text-align: left; font-size: 0.63rem; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); border-bottom: 2px solid var(--border); font-weight: 700; }
+    thead th.r { text-align: right; }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+    tbody tr:hover { background: #f8fafc; }
+    tbody td { padding: 9px 10px; vertical-align: middle; }
+    tbody td.r { text-align: right; }
+    .fw { font-weight: 700; }
+    .empty { text-align: center; padding: 36px; color: var(--muted); }
+    .empty .ei { font-size: 2rem; margin-bottom: 6px; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 0.69rem; font-weight: 700; letter-spacing: .2px; white-space: nowrap; }
+    .c0{background:#fee2e2;color:#b91c1c;} .c1{background:#fef3c7;color:#92400e;} .c2{background:#dbeafe;color:#1d4ed8;}
+    .c3{background:#ede9fe;color:#6d28d9;} .c4{background:#d1fae5;color:#065f46;} .c5{background:#fce7f3;color:#9d174d;}
+    .c6{background:#e0f2fe;color:#0c4a6e;} .c7{background:#f3f4f6;color:#374151;}
+
+    /* Chart */
+    .mnav { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+    .mnav button { width: 28px; height: 28px; border: 1.5px solid var(--border); border-radius: 50%; background: white; cursor: pointer; font-size: .9rem; display: flex; align-items: center; justify-content: center; }
+    .mnav button:hover { border-color: var(--red); color: var(--red); }
+    .mnlabel { font-weight: 700; font-size: .88rem; min-width: 120px; text-align: center; }
+    .ch { position: relative; height: 270px; }
+
+    /* Bottom summary */
+    .bot { background: var(--dark); border-radius: 12px; padding: 18px 20px; color: white; margin-top: 20px; }
+    .bot h3 { font-size: .7rem; text-transform: uppercase; letter-spacing: .6px; opacity: .5; margin-bottom: 14px; }
+    .botg { display: grid; grid-template-columns: repeat(auto-fill,minmax(115px,1fr)); gap: 12px; }
+    .bs .bl { font-size: .63rem; opacity: .5; margin-bottom: 2px; }
+    .bs .bv { font-size: 1.15rem; font-weight: 800; color: var(--yellow); }
+    .bs .bx { font-size: .63rem; opacity: .4; }
+
+    /* Settings modal */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 300; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .modal { background: white; border-radius: 14px; padding: 24px; max-width: 480px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+    .modal h2 { font-size: 1rem; margin-bottom: 6px; }
+    .modal p { font-size: 0.82rem; color: var(--muted); margin-bottom: 18px; line-height: 1.5; }
+    .modal .fg { margin-bottom: 12px; }
+    .modal .fg label { font-size: 0.72rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 5px; display: block; }
+    .modal .fg input { width: 100%; }
+    .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+    .hint { font-size: 0.75rem; color: var(--muted); margin-top: 14px; line-height: 1.5; background: #f8fafc; padding: 10px 12px; border-radius: 8px; }
+    .hint a { color: var(--red); }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 16px; right: 16px; background: var(--dark); color: white; padding: 9px 16px; border-radius: 8px; font-size: .82rem; opacity: 0; transform: translateY(8px); transition: all .2s; pointer-events: none; z-index: 999; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="pokeball"></div>
+  <h1>PTCG Expense Tracker <span>✦ Pokémon TCG</span></h1>
+  <div id="syncBadge" class="notoken" onclick="openSettings()" title="Configure GitHub sync">⚙ Setup sync</div>
+</header>
+
+<main>
+  <div class="sg" id="topSummary"></div>
+
+  <p class="sec">Add Expense</p>
+  <div class="card">
+    <div class="fg5">
+      <div class="fg"><label>Date</label><input type="date" id="iDate" /></div>
+      <div class="fg">
+        <label>Category</label>
+        <select id="iCat" onchange="onCatChange()">
+          <option>Loose Packs</option><option>Sleeved Packs</option><option>ETB</option>
+          <option>PC ETB</option><option>Booster Bundle</option>
+          <option>Slabs</option><option>Singles</option><option>Custom</option>
+        </select>
+      </div>
+      <div class="fg" id="gCN" style="display:none"><label>Item Name</label><input type="text" id="iCN" placeholder="e.g. Pikachu ex FA" /></div>
+      <div class="fg"><label>Price / Unit ($)</label><input type="number" id="iP" min="0" step="0.01" placeholder="0.00" /></div>
+      <div class="fg"><label>Qty</label><input type="number" id="iQ" min="1" value="1" /></div>
+    </div>
+    <div class="fg2">
+      <div class="fg"><label>Notes (optional)</label><input type="text" id="iN" placeholder="Set name, store…" /></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="lt" id="lineTotal">$0.00</span>
+        <button class="btn btn-red" onclick="addExpense()">+ Add</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <p class="sec" style="margin:0">Expense Log</p>
+    <div class="tbr">
+      <button class="btn btn-ghost btn-sm" onclick="manualSync()" title="Force sync to GitHub">↻ Sync</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ CSV</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearAll()" style="color:#dc2626">🗑 Clear</button>
+    </div>
+  </div>
+
+  <div class="filters">
+    <select id="fM" onchange="renderTable()"><option value="">All months</option></select>
+    <select id="fC" onchange="renderTable()">
+      <option value="">All categories</option>
+      <option>Loose Packs</option><option>Sleeved Packs</option><option>ETB</option>
+      <option>PC ETB</option><option>Booster Bundle</option>
+      <option>Slabs</option><option>Singles</option><option>Custom</option>
+    </select>
+  </div>
+
+  <div class="card" style="padding:0">
+    <div class="tw">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th><th>Category</th><th>Item / Notes</th>
+            <th class="r">$/unit</th><th class="r">Qty</th><th class="r">Total</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="tBody"></tbody>
+      </table>
+    </div>
+    <div id="emptyState" class="empty" style="display:none"><div class="ei">🃏</div><div>No expenses yet — add your first entry above!</div></div>
+  </div>
+
+  <p class="sec" style="margin-top:22px">Monthly Spending by Category</p>
+  <div class="card">
+    <div class="mnav">
+      <button onclick="shiftChart(-1)">‹</button>
+      <span class="mnlabel" id="chartLabel"></span>
+      <button onclick="shiftChart(1)">›</button>
+      <button class="btn btn-ghost btn-sm" onclick="allTimeChart()" style="margin-left:4px">All time</button>
+    </div>
+    <div class="ch"><canvas id="chart"></canvas></div>
+  </div>
+
+  <div class="bot">
+    <h3>📊 Full Breakdown by Category</h3>
+    <div class="botg" id="botGrid"></div>
+  </div>
+</main>
+
+<!-- Settings Modal -->
+<div class="overlay" id="settingsModal" style="display:none" onclick="overlayClick(event)">
+  <div class="modal">
+    <h2>⚙ GitHub Sync Setup</h2>
+    <p>Your expense data is saved to a <code>data.json</code> file in a GitHub repo. Any device that opens this app will load the same data.</p>
+    <div class="fg"><label>GitHub Username / Org</label><input type="text" id="cfgOwner" placeholder="your-github-username" /></div>
+    <div class="fg"><label>Repository Name</label><input type="text" id="cfgRepo" placeholder="ptcg-tracker" /></div>
+    <div class="fg"><label>Personal Access Token</label><input type="password" id="cfgToken" placeholder="ghp_xxxxxxxxxxxx" /></div>
+    <div class="hint">
+      To create a token: GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → New token.<br/>
+      Required permission: <strong>Contents → Read and Write</strong> for this repo only.<br/>
+      The token is stored only in <em>this browser's</em> localStorage — never sent anywhere except GitHub's API.
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeSettings()">Cancel</button>
+      <button class="btn btn-red" onclick="saveSettings()">Save & Test</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────────────────────
+const CATS    = ['Loose Packs','Sleeved Packs','ETB','PC ETB','Booster Bundle','Slabs','Singles','Custom'];
+const DEFS    = {'Loose Packs':6.90,'Sleeved Packs':6.90,'ETB':99,'PC ETB':109.90,'Booster Bundle':41.40};
+const COLORS  = ['#ef4444','#f59e0b','#3b82f6','#8b5cf6','#10b981','#ec4899','#06b6d4','#6b7280'];
+const CI      = Object.fromEntries(CATS.map((c,i)=>[c,i]));
+const LS_DATA = 'ptcg_data_v2';
+const LS_SHA  = 'ptcg_gh_sha';
+const LS_CFG  = 'ptcg_gh_cfg';
+const GH_FILE = 'data.json';
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let expenses   = JSON.parse(localStorage.getItem(LS_DATA) || '[]');
+let ghSha      = localStorage.getItem(LS_SHA) || null;
+let cfg        = JSON.parse(localStorage.getItem(LS_CFG) || 'null');
+let chartInst  = null;
+let chartAllTime = true;
+let chartMonth = null;
+let syncTimer  = null;
+let isSyncing  = false;
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('iDate').value = today();
+  document.getElementById('iP').addEventListener('input', recalc);
+  document.getElementById('iQ').addEventListener('input', recalc);
+  onCatChange();
+  if (cfg) {
+    await loadFromGitHub();
+  } else {
+    updateBadge('notoken');
+  }
+  renderAll();
+});
+
+// ── GitHub helpers ────────────────────────────────────────────────────────────
+function apiUrl() {
+  return `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${GH_FILE}`;
+}
+
+function authHeaders() {
+  return { Authorization: `Bearer ${cfg.token}`, 'Content-Type': 'application/json', Accept: 'application/vnd.github+json' };
+}
+
+async function loadFromGitHub() {
+  if (!cfg) return;
+  updateBadge('syncing', '↻ Loading…');
+  try {
+    const r = await fetch(apiUrl(), { headers: authHeaders() });
+    if (r.status === 404) {
+      // File doesn't exist yet — push current local data
+      await pushToGitHub(false);
+      return;
+    }
+    if (!r.ok) throw new Error(`GitHub API ${r.status}`);
+    const j = await r.json();
+    ghSha = j.sha;
+    localStorage.setItem(LS_SHA, ghSha);
+    const remote = JSON.parse(atob(j.content.replace(/\n/g,'')));
+    // Merge: remote wins for conflicts (remote is source of truth)
+    const localMap = Object.fromEntries(expenses.map(e=>[e.id,e]));
+    const remoteMap = Object.fromEntries(remote.map(e=>[e.id,e]));
+    const merged = Object.values({...localMap,...remoteMap});
+    merged.sort((a,b)=>b.date.localeCompare(a.date));
+    expenses = merged;
+    localStorage.setItem(LS_DATA, JSON.stringify(expenses));
+    updateBadge('synced');
+    renderAll();
+  } catch(e) {
+    console.error(e);
+    updateBadge('error', '⚠ Sync error');
+  }
+}
+
+async function pushToGitHub(showBadge = true) {
+  if (!cfg || isSyncing) return;
+  isSyncing = true;
+  if (showBadge) updateBadge('syncing', '↻ Saving…');
+  try {
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(expenses, null, 2))));
+    const body = { message: `Auto-sync ${new Date().toISOString()}`, content };
+    if (ghSha) body.sha = ghSha;
+    const r = await fetch(apiUrl(), { method: 'PUT', headers: authHeaders(), body: JSON.stringify(body) });
+    if (!r.ok) {
+      const err = await r.json().catch(()=>({}));
+      // SHA conflict — re-fetch and retry
+      if (r.status === 409 || (err.message||'').includes('sha')) {
+        isSyncing = false;
+        await loadFromGitHub();
+        return;
+      }
+      throw new Error(`GitHub API ${r.status}: ${err.message||''}`);
+    }
+    const j = await r.json();
+    ghSha = j.content.sha;
+    localStorage.setItem(LS_SHA, ghSha);
+    updateBadge('synced');
+  } catch(e) {
+    console.error(e);
+    updateBadge('error', '⚠ Sync failed — click to retry');
+  } finally {
+    isSyncing = false;
+  }
+}
+
+function schedulePush() {
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => pushToGitHub(), 5000); // 5s debounce
+}
+
+function manualSync() {
+  clearTimeout(syncTimer);
+  pushToGitHub();
+}
+
+// ── Badge ─────────────────────────────────────────────────────────────────────
+function updateBadge(state, label) {
+  const b = document.getElementById('syncBadge');
+  b.className = state;
+  const labels = { synced:'✓ Synced', syncing:'↻ Syncing…', error:'⚠ Sync error', notoken:'⚙ Setup sync' };
+  b.textContent = label || labels[state] || '';
+  b.onclick = (state === 'error' || state === 'notoken') ? openSettings : null;
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+function openSettings() {
+  if (cfg) {
+    document.getElementById('cfgOwner').value = cfg.owner || '';
+    document.getElementById('cfgRepo').value  = cfg.repo  || '';
+    document.getElementById('cfgToken').value = cfg.token || '';
+  }
+  document.getElementById('settingsModal').style.display = 'flex';
+}
+
+function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
+
+function overlayClick(e) { if (e.target.id === 'settingsModal') closeSettings(); }
+
+async function saveSettings() {
+  const owner = document.getElementById('cfgOwner').value.trim();
+  const repo  = document.getElementById('cfgRepo').value.trim();
+  const token = document.getElementById('cfgToken').value.trim();
+  if (!owner || !repo || !token) return toast('Fill in all fields');
+  cfg = { owner, repo, token };
+  localStorage.setItem(LS_CFG, JSON.stringify(cfg));
+  ghSha = null;
+  localStorage.removeItem(LS_SHA);
+  closeSettings();
+  toast('Settings saved — testing connection…');
+  await loadFromGitHub();
+}
+
+// ── Form ──────────────────────────────────────────────────────────────────────
+function onCatChange() {
+  const cat = document.getElementById('iCat').value;
+  const p = DEFS[cat];
+  const inp = document.getElementById('iP');
+  inp.value = p != null ? p.toFixed(2) : '';
+  inp.placeholder = p != null ? '' : 'Enter price';
+  document.getElementById('gCN').style.display = cat === 'Custom' ? 'flex' : 'none';
+  recalc();
+}
+
+function recalc() {
+  const p = parseFloat(document.getElementById('iP').value) || 0;
+  const q = parseInt(document.getElementById('iQ').value)   || 0;
+  document.getElementById('lineTotal').textContent = '$' + (p*q).toFixed(2);
+}
+
+function addExpense() {
+  const date  = document.getElementById('iDate').value;
+  const cat   = document.getElementById('iCat').value;
+  const price = parseFloat(document.getElementById('iP').value);
+  const qty   = parseInt(document.getElementById('iQ').value);
+  const notes = document.getElementById('iN').value.trim();
+  const cname = document.getElementById('iCN').value.trim();
+
+  if (!date)               return toast('Select a date');
+  if (!price || price<=0)  return toast('Enter a valid price');
+  if (!qty   || qty<=0)    return toast('Enter a valid quantity');
+  if (cat==='Custom'&&!cname) return toast('Enter a custom item name');
+
+  const e = { id: Date.now().toString(), date, cat, item: cat==='Custom'?cname:cat, notes, price, qty, total: price*qty };
+  expenses.unshift(e);
+  save();
+  renderAll();
+  document.getElementById('iQ').value = 1;
+  document.getElementById('iN').value = '';
+  if (cat==='Custom') document.getElementById('iCN').value='';
+  recalc();
+  toast('Entry added ✓');
+  if (cfg) schedulePush();
+}
+
+// ── Save ──────────────────────────────────────────────────────────────────────
+function save() { localStorage.setItem(LS_DATA, JSON.stringify(expenses)); }
+
+// ── Render all ────────────────────────────────────────────────────────────────
+function renderAll() {
+  renderSummary(); populateMonthFilter(); renderTable(); renderChart(); renderBottom();
+}
+
+function renderSummary() {
+  const now = new Date(), mon = ym(now), wks = weekStart(now);
+  const tot = sum(expenses);
+  const mth = sum(expenses.filter(e=>e.date.startsWith(mon)));
+  const wk  = sum(expenses.filter(e=>new Date(e.date+'T00:00')>=wks));
+  const avg = avgPerMonth();
+  document.getElementById('topSummary').innerHTML = `
+    <div class="sc"><div class="sl">All-Time Spent</div><div class="sv">${fmt(tot)}</div><div class="ss">${expenses.length} entries</div></div>
+    <div class="sc y"><div class="sl">This Month</div><div class="sv">${fmt(mth)}</div><div class="ss">${now.toLocaleString('default',{month:'long',year:'numeric'})}</div></div>
+    <div class="sc g"><div class="sl">This Week</div><div class="sv">${fmt(wk)}</div><div class="ss">Mon – Sun</div></div>
+    <div class="sc b"><div class="sl">Avg / Month</div><div class="sv">${fmt(avg)}</div><div class="ss">Based on history</div></div>`;
+}
+
+function renderTable() {
+  const fm = document.getElementById('fM').value, fc = document.getElementById('fC').value;
+  const rows = expenses.filter(e=>(!fm||e.date.startsWith(fm))&&(!fc||e.cat===fc));
+  const tbody = document.getElementById('tBody');
+  const empty = document.getElementById('emptyState');
+  if (!rows.length) { tbody.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  tbody.innerHTML = rows.map(e=>{
+    const ci = CI[e.cat]??7;
+    const lbl = e.item!==e.cat ? e.item : (e.notes||'—');
+    return `<tr>
+      <td>${fmtDate(e.date)}</td>
+      <td><span class="pill c${ci}">${e.cat}</span></td>
+      <td style="color:var(--muted);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lbl}</td>
+      <td class="r">$${e.price.toFixed(2)}</td>
+      <td class="r">${e.qty}</td>
+      <td class="r fw">$${e.total.toFixed(2)}</td>
+      <td class="r"><button class="btn btn-del btn-sm" onclick="del('${e.id}')">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function shiftChart(d) {
+  chartAllTime=false;
+  if(!chartMonth) chartMonth=ym(new Date());
+  const [y,m]=chartMonth.split('-').map(Number);
+  chartMonth=ym(new Date(y,m-1+d,1));
+  renderChart();
+}
+function allTimeChart(){chartAllTime=true;chartMonth=null;renderChart();}
+
+function renderChart() {
+  const ctx = document.getElementById('chart').getContext('2d');
+  let labels, datasets;
+  if (chartAllTime) {
+    const months = last6months();
+    document.getElementById('chartLabel').textContent='Last 6 months';
+    datasets = CATS.map((cat,ci)=>{
+      const vals=months.map(m=>sum(expenses.filter(e=>e.cat===cat&&e.date.startsWith(m))));
+      return vals.some(v=>v>0)?{label:cat,data:vals,backgroundColor:COLORS[ci]+'bb',borderColor:COLORS[ci],borderWidth:1.5,borderRadius:3}:null;
+    }).filter(Boolean);
+    labels=months.map(m=>{const[y,mo]=m.split('-');return new Date(y,mo-1).toLocaleString('default',{month:'short',year:'2-digit'});});
+  } else {
+    const m=chartMonth||ym(new Date()),  [y,mo]=m.split('-');
+    document.getElementById('chartLabel').textContent=new Date(y,mo-1).toLocaleString('default',{month:'long',year:'numeric'});
+    const ac=CATS.filter(c=>expenses.some(e=>e.cat===c&&e.date.startsWith(m)));
+    labels=ac.length?ac:CATS;
+    datasets=[{label:'Spending',data:labels.map(cat=>sum(expenses.filter(e=>e.cat===cat&&e.date.startsWith(m)))),
+      backgroundColor:labels.map(c=>COLORS[CI[c]??7]+'bb'),borderColor:labels.map(c=>COLORS[CI[c]??7]),borderWidth:1.5,borderRadius:3}];
+  }
+  if(chartInst) chartInst.destroy();
+  chartInst=new Chart(ctx,{type:'bar',data:{labels,datasets},options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:chartAllTime,position:'bottom',labels:{boxWidth:11,padding:10,font:{size:11}}},tooltip:{callbacks:{label:c=>' $'+c.parsed.y.toFixed(2)}}},
+    scales:{x:{grid:{display:false}},y:{beginAtZero:true,ticks:{callback:v=>'$'+v.toFixed(0)}}}
+  }});
+}
+
+function renderBottom() {
+  const stats=CATS.map(cat=>({cat,total:sum(expenses.filter(e=>e.cat===cat)),count:expenses.filter(e=>e.cat===cat).length})).filter(s=>s.count>0);
+  document.getElementById('botGrid').innerHTML=stats.length
+    ?stats.map(s=>`<div class="bs"><div class="bl">${s.cat}</div><div class="bv">$${s.total.toFixed(2)}</div><div class="bx">${s.count} entr${s.count===1?'y':'ies'}</div></div>`).join('')
+    :'<div style="color:rgba(255,255,255,0.35);font-size:.82rem">No data yet</div>';
+}
+
+function del(id) {
+  if(!confirm('Delete this entry?')) return;
+  expenses=expenses.filter(e=>e.id!==id);
+  save(); renderAll(); toast('Deleted');
+  if(cfg) schedulePush();
+}
+
+function clearAll() {
+  if(!confirm('Clear ALL expenses? This cannot be undone.')) return;
+  expenses=[]; ghSha=null; localStorage.removeItem(LS_SHA);
+  save(); renderAll(); toast('Cleared');
+  if(cfg) schedulePush();
+}
+
+function exportCSV() {
+  if(!expenses.length) return toast('No data to export');
+  const rows=[['Date','Category','Item','Notes','Price/Unit','Qty','Total']];
+  expenses.forEach(e=>rows.push([e.date,e.cat,e.item,e.notes,e.price,e.qty,e.total]));
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  dl(new Blob([csv],{type:'text/csv'}),'ptcg-'+today()+'.csv');
+}
+
+function dl(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();}
+
+// ── Util ──────────────────────────────────────────────────────────────────────
+const sum=arr=>arr.reduce((s,e)=>s+e.total,0);
+const fmt=n=>'$'+n.toFixed(2);
+const today=()=>new Date().toISOString().split('T')[0];
+const ym=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+
+function fmtDate(iso){const[y,m,d]=iso.split('-');return`${d}/${m}/${y}`;}
+function weekStart(date){const d=new Date(date),day=d.getDay();d.setDate(d.getDate()+(day===0?-6:1-day));d.setHours(0,0,0,0);return d;}
+function last6months(){const r=[],now=new Date();for(let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);r.push(ym(d));}return r;}
+function avgPerMonth(){if(!expenses.length)return 0;const months=new Set(expenses.map(e=>e.date.slice(0,7)));return sum(expenses)/months.size;}
+function populateMonthFilter(){
+  const months=[...new Set(expenses.map(e=>e.date.slice(0,7)))].sort().reverse();
+  const sel=document.getElementById('fM'),cur=sel.value;
+  sel.innerHTML='<option value="">All months</option>'+months.map(m=>{const[y,mo]=m.split('-');return`<option value="${m}"${m===cur?' selected':''}>${new Date(y,mo-1).toLocaleString('default',{month:'long',year:'numeric'})}</option>`;}).join('');
+}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+</script>
+
+</body>
+</html>
