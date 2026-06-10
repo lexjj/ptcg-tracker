@@ -1,5 +1,15 @@
 [
   {
+    "id": "1781093262860",
+    "date": "2026-06-10",
+    "cat": "Loose Packs",
+    "item": "Loose Packs",
+    "notes": "chaos rising",
+    "price": 9.5,
+    "qty": 3,
+    "total": 28.5
+  },
+  {
     "id": "1781069128401",
     "date": "2026-06-10",
     "cat": "Custom",
