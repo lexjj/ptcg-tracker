@@ -145,7 +145,7 @@
         <label>Category</label>
         <select id="iCat" onchange="onCatChange()">
           <option>Loose Packs</option><option>Sleeved Packs</option><option>ETB</option>
-          <option>PC ETB</option><option>Booster Bundle</option>
+          <option>PC ETB</option><option>Booster Bundle</option><option>Booster Box</option>
           <option>Slabs</option><option>Singles</option><option>Custom</option>
         </select>
       </div>
@@ -176,7 +176,7 @@
     <select id="fC" onchange="renderTable()">
       <option value="">All categories</option>
       <option>Loose Packs</option><option>Sleeved Packs</option><option>ETB</option>
-      <option>PC ETB</option><option>Booster Bundle</option>
+      <option>PC ETB</option><option>Booster Bundle</option><option>Booster Box</option>
       <option>Slabs</option><option>Singles</option><option>Custom</option>
     </select>
   </div>
@@ -237,8 +237,8 @@
 
 <script>
 // ── Config ────────────────────────────────────────────────────────────────────
-const CATS    = ['Loose Packs','Sleeved Packs','ETB','PC ETB','Booster Bundle','Slabs','Singles','Custom'];
-const DEFS    = {'Loose Packs':6.90,'Sleeved Packs':6.90,'ETB':99,'PC ETB':109.90,'Booster Bundle':41.40};
+const CATS    = ['Loose Packs','Sleeved Packs','ETB','PC ETB','Booster Bundle','Booster Box','Slabs','Singles','Custom'];
+const DEFS    = {'Loose Packs':6.90,'Sleeved Packs':6.90,'ETB':99,'PC ETB':109.90,'Booster Bundle':41.40,'Booster Box':248.40};
 const COLORS  = ['#ef4444','#f59e0b','#3b82f6','#8b5cf6','#10b981','#ec4899','#06b6d4','#6b7280'];
 const CI      = Object.fromEntries(CATS.map((c,i)=>[c,i]));
 const LS_DATA = 'ptcg_data_v2';
