@@ -1,5 +1,15 @@
 [
   {
+    "id": "1781938970187",
+    "date": "2026-06-20",
+    "cat": "Booster Bundle",
+    "item": "Booster Bundle",
+    "notes": "Ascended heros",
+    "price": 108,
+    "qty": 2,
+    "total": 216
+  },
+  {
     "id": "1781093262860",
     "date": "2026-06-10",
     "cat": "Loose Packs",
