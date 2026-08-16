@@ -1,5 +1,15 @@
 [
   {
+    "id": "1786838446039",
+    "date": "2026-08-15",
+    "cat": "Slabs",
+    "item": "Slabs",
+    "notes": "graded slabs 27 piece",
+    "price": 700,
+    "qty": 1,
+    "total": 700
+  },
+  {
     "id": "1786807056573",
     "date": "2026-08-15",
     "cat": "Custom",
